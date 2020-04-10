@@ -1,0 +1,20 @@
+Projet effectué dans le cadre du cours d'utilisation des données en assurance du 2eme semestre de M1.
+L'énoncé du projet était le suivant : 
+
+"Définir un cas d’usage consistant à identifier et exploiter des données externes (open data, API,
+webscraping) afin d’améliorer un processus actuariel ou de la chaine de valeur de l’assurance.
+Identifier les contraintes RGPD et les chantiers à mettre en œuvre pour une bonne qualité de
+données"
+
+Nous avions décidé d'exploiter un dataset trouvable sur le site opendata du gouvernement concernant les accidents corporels en France depuis 2005.
+Je me suis occupé notamment de la partie cartographie sur R que j'ai effectué avec les packages "sf" et "tmap".
+Nous avions seulement 1 semaine pour réaliser ce projet, il est donc loin d'être complet, il m'a cependent permis d'apprendre à manipuler des données géolocalisées. 
+
+J'ai mis à disposition les fichiers suivants : 
+
+- Un dossier data comprenant les différentes données, notamment un fond de carte avec un maillaige départemental au format SHP.
+Le fichier "Accidents_clean.csv" étant trop lourd je n'ai pas pu le mettre, il est à disposition sur ce lien : 
+https://www.data.gouv.fr/fr/datasets/base-de-donnees-accidents-corporels-de-la-circulation/#resource-community-8d0753c2-92a3-48f7-a3cc-133be9bf2e29
+
+- Un rapport de projet au format html (Accidents-corporels-en-France-de-2010-à-2017), ainsi que le fichier Rmd qui va avec. 
+- Une carte intéractive au format html ainsi que le code R m'ayant permis de la réaliser. 
