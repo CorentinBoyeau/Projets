@@ -1,0 +1,6 @@
+Projet effectué dans le cadre du cours d'assurance non vie du 2ème semestre de M1. 
+Le sujet du projet était simplement de trouver un dataset et d'y appliquer 2 GLM différents. 
+Notre objectif était de prévoir la survenance d'un sinistre auto chez nos assurés. 
+Nous avons pour ce  faire utilisé un GLM Poisson et un GLM Binomial. 
+
+J'ai mis à disposition 2 types de fichiers : un fichier Rmarkdown .rmd, ainsi qu'un fichier .html obtenu à partir du fichier Rmarkdown
