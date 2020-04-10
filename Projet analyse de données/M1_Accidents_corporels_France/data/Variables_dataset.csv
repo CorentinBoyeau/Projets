@@ -1,0 +1,37 @@
+Variables;Définition
+Num_Acc;Numéro d'identifiant de l’accident 
+lum;Lumière : conditions d’éclairage 
+agg;Localisation : Hors agglomération ou en agglomération
+int;Information sur le type d'intersection
+atm;Condition atmosphérique
+col;Type de collision
+dep;Département
+date_formated;Date de l'accident
+ANNEE;Année de l'accident
+HEURE;Heure de l'accident
+current_city_code;Code INSEE de la ville
+current_name;Nom de la ville
+latitude;Latitude
+longitude;Longitude
+catr;Catégorie de route
+circ;Régime de circulation
+nbv;Nombre de voies de circulation
+prof;Profil en long décrit la déclivité de la route
+plan;"Tracé en plan : Rectilinge, en courbe, en ""S"""
+surf;Etat de la surface
+situ;Situation de l’accident
+NOM_REG;Nom de la région
+voiture_nb;Nombre de voiture dans l'accident
+car_involve;Voiture impliquée dans l'accident (1) ou non (0)
+deuxrouesmotorises_nb;Nombre de deux roues motorisés dans l'accident
+velo_nb;Nombre de vélos dans l'accident
+bike_involve;Vélo impliqué dans l'accident (1) ou non (0)
+poidslourd_nb;Nombre de poids lourds dans l'accident
+vehiculeautre_nb;Nombre d'autres véhicules dans l'accident
+pietons_nb;Nombre de piétons dans l'accident
+indemne_nb;Nombre de personnes indemne
+blesseleger_nb;Nombre de blessé léger
+hospitalise_nb;Nombre de personnes hospitalisées
+tue_nb;Nombre de personnes tuées
+gravite_accident;Gravité de l'accident
+geo_source_display;Methode utilisée pour déterminer les données géographiques
