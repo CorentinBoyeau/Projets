@@ -1,0 +1,16 @@
+J'ai effectué ce projet au 2ème semestre de ma L3 mathématiques dans le cadre du cours de simulations probabilistes.
+
+Ce projet n'a pas pour but d'analyser des données mais d'étudier les probas liées à des concepts mathématiques.
+En l'occurence le but est d'étudier les probabilités des permutations.
+
+Il se décompose de la manière suivante : 
+
+- Création d'une fonction qui décompose une permutation en cycles
+- Quelle loi suit la variable représentant la longueur du cycle le plus long ?
+- Quelle est la probabilité que k points soient dans le même cycle ?
+- Quelle loi suit la variable représentant le nombre de cycles de longueur j ?
+- Quelle loi suit la variable représentant le nombre de cycles ?
+
+Ce projet m'a notamment permis de manipuler les packages numpy et matplotlib, indispensables en datascience. 
+
+J'ai mis à disposition uniquement un fichier python sur lequel les explications sont présentes (je ne conaissais pas encore Jupyter) 
