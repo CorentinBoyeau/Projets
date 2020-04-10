@@ -1,0 +1,368 @@
+---
+title: "Accidents corporels en France de 2010 à 2017"
+subtitle: Analyse descriptive, analyse cartographique et développement d'un outil de tarification
+author: Ramzi Faroui - Aurélien Rousseau - Anthony Ngo - Corentin Boyeau 
+date: 7 mars 2020
+output:   
+  bookdown::html_document2:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+linkcolor: red
+header-includes:
+- \usepackage[francais]{babel}
+- \usepackage{float}
+- \usepackage{booktabs}
+
+---
+
+
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center',fig.pos = 'H')
+#position par défaut des figures dans le pdf : centrées et à l'endroit où on les construit
+library(magrittr) #pour utiliser l'opérateur pipe %>%
+library(kableExtra) #pour améliorer les tableaux
+options(knitr.table.format = "pandoc") 
+```
+
+
+# Description du dataset et respect du RGPD
+
+## Présentation de la base et des différentes variables
+
+Pour notre étude nous avons décidé de nous focaliser sur une analyse des accidents corporels en France, dans le but d'améliorer le processus de tarification automobile et vélo. Nous disposons d'une base de données récupérée sur le site [open data du gouvernement](https://www.data.gouv.fr/fr/datasets/base-de-donnees-accidents-corporels-de-la-circulation/#resource-community-8d0753c2-92a3-48f7-a3cc-133be9bf2e29) qui recense tous les accidents corporels de la circulation entre 2010 et 2017. Pour rappel, un accident corporel de la circulation désigne un accident survenu sur une voie ouverte à la circulation publique, impliquant au moins un véhicule et ayant fait au moins une victime ayant nécessité des soins. Les saisies d'informations sont réalisées par les forces de l'ordre dans une fiche intitulée bulletin d’analyse des accidents corporels. 
+
+Toutes les variables à notre disposition sont détaillées dans le fichier ci-dessous : 
+
+```{r, message= FALSE, warning = FALSE}
+
+VarList <- read.csv("data/Variables_dataset.csv" , header=T, sep=';', stringsAsFactors = F)
+
+library(rmarkdown) #pour utiliser paged_table
+
+paged_table(VarList)
+```
+
+## Respect du RGPD
+
+La base de donnée qu'on a utilisé pour notre étude est en accés libre sur le site opendata.gouv. Les données sont anonymes mais il faudrait faire des analyses testant l'idenfication possible ou non de la personne pour se conformer le plus possible à la RGPD.
+
+# Analyse cartographique départementale
+## Préparation de l'analyse
+### Packages R utilisés et importation des données
+```{r, message= FALSE, warning = FALSE}
+library(sf)
+library(tmap)
+library(dplyr)
+```
+
+Nous utiliserons pour cette étude les packages **sf** et **tmap** pour la cartographie et le package **dplyr** pour la manipulation des données.
+
+Pour la cartographie nous  avons besoin principalement de deux choses : 
+
+ * Un fond de carte sur lequel nous pourrons ajouter nos données  
+ * Un ensemble de données geolocalisées sur lequel va porter notre étude 
+ 
+Pour le fond de carte, nous avons choisis un maillage départemental, plus précis qu'une limitation par région, et plus lisible qu'une limitation par commune. Pour l'obtenir, nous avons utilisé les données [GEOFLA](https://www.data.gouv.fr/fr/datasets/geofla-r-departements-2015/) mises à disposition sur le site du gouvernement, au format ESRI Shapefile (SHP). 
+
+Nous importons également des données sur le nombre d'habitants par département en 2017 obtenus sur le site de l'[INSEE](https://www.insee.fr/fr/statistiques/4265390?sommaire=4265511).
+
+```{r, message= FALSE, warning = FALSE, results="hide"}
+
+data <- read.csv("data/Accidents_clean.csv", header=T, sep=';', stringsAsFactors = F)
+map <- st_read("data/shp/geoflar-departements-2015.shp", stringsAsFactors=F)
+population <- read.csv("data/Population_departements.csv",header=T, sep=';',stringsAsFactors=F, fileEncoding="UTF-8-BOM")
+
+```
+
+### Préparation des données
+
+Nous disposons dans notre base de données tous les accidents corporels de la circulation entre 2010 et 2017, chaque ligne correspondant à un accident. Afin de faire l'analyse il nous faut tout d'abord rassembler nos données par département.
+
+Nous créons pour cela plusieurs variables :
+
+* Le nombre d'accidents corporel total
+* Le nombre d'accidents de voiture
+* Le nombre d'accidents de voiture pour 10 000 habitants
+* Le nombre d'accidents de vélo pour 10 000 habitants
+* Le nombre d'hospitalisation suite à un accident corporel pour 10 000 habitants
+* Le nombre de mort suite à un accident corporel pour 10 000 habitants
+
+On commence par créer un nouveau dataset : *data_dep*, disposant d'une ligne par département, et qui recense le nombre d'accidents de voiture, de vélo, le nombre d'hospitalisation et le nombre de mort :
+
+```{r, message= FALSE, warning = FALSE}
+
+data_dep <- aggregate(subset(data, select=c(car_involve,bike_involve,hospitalise_nb,tue_nb)), by=list(data$dep), FUN= sum) 
+colnames(data_dep) <- c("code_dept","nbr_accidents_voiture","nbr_accidents_velo","hospitalise_nb","tue_nb")
+
+
+#On remplace les "1" par des "01", "2" par "02" ... pour avoir la même notation que dans le dataset map et population :
+pos <- which(unique(data_dep$code_dept)%in%c("1","2","3","4","5","6","7","8","9"))
+data_dep$code_dept <- replace(data_dep$code_dept, pos, c("01","02","03","04","05","06","07","08","09"))
+```
+
+On peut ensuite rajouter une colonne population à *data_dep* et créer nos variables pondérées par 10 000 habitant :
+
+```{r, message= FALSE, warning = FALSE}
+data_and_pop <- inner_join(population, data_dep)
+
+data_and_pop$accidents_voiture_10000 = round(10000* data_and_pop$nbr_accidents_voiture / data_and_pop$population, digits=1)
+data_and_pop$accidents_velo_10000 = round(10000* data_and_pop$nbr_accidents_velo / data_and_pop$population, digits=1)
+data_and_pop$hospitalise_nb_10000 = round(10000* data_and_pop$hospitalise_nb / data_and_pop$population, digits=1)
+data_and_pop$tue_nb_10000 = round(10000* data_and_pop$tue_nb / data_and_pop$population, digits=1)
+
+
+```
+
+Il reste plus qu'à réunir notre fond de carte avec nos données :
+
+```{r, message= FALSE, warning = FALSE}
+
+map_and_data <- inner_join(map, data_and_pop)
+
+map_and_data <- map_and_data[!map_and_data$code_dept %in% c("971","972","973","974","976"),]  
+#On enlève les départements d'outre mer pour plus de visibilité
+
+```
+
+## Analyse cartographique départementale de 2010 à 2017
+### Le nombre d'accidents de voiture
+
+```{r, message= FALSE, warning = FALSE}
+
+tm_shape(map_and_data, name="Accidents de voiture (2010 à 2017)")+
+  tm_polygons("nbr_accidents_voiture", id="nom_dept",title = "Accidents de voiture", popup.vars=c("Nombre d'accidents de voiture"="nbr_accidents_voiture"))+
+  tm_layout(main.title = "Nombre d'accidents de voiture entre 2010 et 2017", main.title.size = 1, main.title.position = "center", legend.title.size = 0.75)
+
+```
+
+Comme on peut le voir, certains départements sont plus touchés que d'autres. Ce n'est cependant pas réellement significatif, la population et la circulation n'étant pas la même en fonction des départements. Cela se confirme par les résultats, puisque l'Ile de France, les  Bouches-du-Rhône, le Rhône, les Alpes-Maritimes et la Gironde arrivent en tête et contiennent respectivement Paris, Marseille, Nice et Bordeaux. Pondérons donc ces résultats par le nombre d'habitants par département. 
+
+### Le nombre d'accidents de voiture pour 10000 habitants
+
+```{r, message= FALSE, warning = FALSE}
+
+tm_shape(map_and_data, name="Accidents voiture/10000 hab (2010 à 2017)")+
+  tm_polygons("accidents_voiture_10000", id="nom_dept",title = "Accidents de voiture\n(pour 10000 habitants)", popup.vars=c("Nombre d'accidents de voiture pour 10000 habitants"="accidents_voiture_10000"), palette="Greens")+
+  tm_layout(main.title = "Nombre d'accidents de voiture pour 10000 habitants \n entre 2010 et 2017", main.title.size = 1, main.title.position = "center", legend.title.size = 0.75)
+```
+
+On a désormais une représentation plus fidèle de la réalité, qui prend désormais en compte le nombre d'habitants du département. C'est cependant loin d'être parfait et un axe d'amélioration serait de prendre en compte la circulation dans le département plutôt que le nombre d'habitants. On peut cependant avoir une première idée des zones à risques, la première place étant occupée par Paris avec 170 accidents de voitures pour 10000 habitants en l'espace de 7 ans entre 2010 et 2017 :  
+
+```{r, message= FALSE, warning = FALSE}
+
+acc <- subset(as.data.frame(map_and_data), select=c(code_dept, nom_dept, accidents_voiture_10000))
+acc[order(acc[,3], decreasing = TRUE),]
+```
+
+On peut effectuer le même type de cartes concernant les accidents de vélo, dans le cadre d'une assurances sur les vélos par exemple. 
+
+### Le nombre d'accidents de vélo pour 10000 habitants
+
+```{r, message= FALSE, warning = FALSE}
+
+tm_shape(map_and_data, name="Accidents velo/10000 hab (2010 à 2017)")+
+  tm_polygons("accidents_velo_10000", id="nom_dept",title = "Accidents de vélo\n(pour 10000 habitants)", popup.vars=c("Nombre d'accidents de vélo pour 10000 habitants"="accidents_velo_10000"), palette="Blues")+
+  tm_layout(main.title = "Nombre d'accidents de vélo pour 10000 habitants \n entre 2010 et 2017", main.title.size = 1, main.title.position = "center", legend.title.size = 0.75)
+
+```
+
+Sans surprises, Paris arrive en première position avec presque 24 accidents corporels de vélo pour 10 000 habitants entre 2010 et 2017. La 2ème position est plus surprenante et est occupée par l'Indre-et-Loire avec un peu plus de 10 accidents de vélo pour 10 000 habitants entre 2010 et 2017. 
+
+### Le nombre d'hospitalisation suite à un accident corporel pour 10 000 habitants
+
+```{r, message= FALSE, warning = FALSE}
+
+tm_shape(map_and_data, name="Nombre d'hospitalisation pour 10000 habitants (2010 à 2017)")+
+  tm_polygons("hospitalise_nb_10000", id="nom_dept",title = "Nombre d'hospitalisations\n(pour 10000 habitants)", popup.vars=c("Nombre d'hospitalisation pour 10000 habitants"="hospitalise_nb_10000"), palette="Purples")+
+  tm_layout(main.title = "Nombre d'hospitalisations suite à un accident corporel \n pour 10000 habitants entre 2010 et 2017", main.title.size = 1, main.title.position = "center", legend.title.size = 0.75)
+
+```
+
+Cette carte nous permet de relativiser les résultats trouvés précedemment. En effet, bien que Paris soit une zone à risque en terme de nombre d'accidents, celle-ci est loin d'être première concernant le nombre d'hospitalisations, et donc potentiellement concernant la gravité des accidents. Avec 22 hospitalisations pour 10 000 habitants entre 2010 et 2017, Paris est loin de la première place, occupée par la Corse-du-Sud avec presque 68 hospitalisations pour 10 000 habitants pendant cette même période. 
+
+Des accidents moins graves du point de vue des blessés traduit potentiellement des coût moins importants, que cela soit d'un point de vue matériel, ou du point de vue de la potentielle responsabilité civile qui pourrait être engagée.  
+
+### Le nombre de mort suite à un accident corporel pour 10 000 habitants
+
+```{r, message= FALSE, warning = FALSE}
+
+tm_shape(map_and_data, name="Nombre de mort pour 10000 habitants (2010 à 2017)")+
+  tm_polygons("tue_nb_10000", id="nom_dept",title = "Nombre de morts\n(pour 10000 habitants)", popup.vars=c("Nombre de mort pour 10000 habitants"="tue_nb_10000"), palette="Greys")+
+  tm_layout(main.title = "Nombre de morts suite à un accident corporel \n pour 10000 habitants entre 2010 et 2017", main.title.size = 1, main.title.position = "center", legend.title.size = 0.75)
+
+```
+
+
+Avec 11 morts pour 10 000 habitants entre 2010 et 2017 la Lozère se place en première position des départements avec la plus forte mortalité dans les accidents, les 2 dernières places sont occupées par les Hauts-de-Seine et Paris avec respectivement 1,1 et 1,3 morts pour 10 000 habitants entre 2010 et 2017. Pour d'avantages de rigueur, il serait judicieux de comparer ces résultats avec les données internes de l'assureur, en étudiant l'éventuelle corrélation entre le nombre d'hospitalisations et de morts avec le coût moyen des sinistres en fonction des départements.
+
+# Création d'un indicateur test pour l'Ile-de-France
+
+
+En nous documentant sur le thème des accidents automobiles, nous avons fait le constat qu’une grande partie de ceux-ci se déroulaient à proximité du domicile. C’est pourquoi notre objectif est de créer un indicateur de risque de sinistralité dans un rayon de cinq et dix kilomètres du domicile pour chaque assureur.    
+
+Pour se faire nous allons utiliser notre base de données recensant tous les accidents. Nous allons nous concentrer exclusivement sur l’île de France car cette région comporte énormément de données et des comportements de circulation plutôt similaires. Cependant nous exclurons de notre base test le département de Paris car celui-ci correspond à une zone de convergence des automobilistes, de plus Paris possède plus de transports en commun.   
+
+Un problème important est le nombre d’accidents dans une zone augmente lorsque plus de voitures circulent dans cette dernière, mais on peut se demander si le taux d’accidents par voiture circulant dans cette zone est plus important qu’ailleurs ? Par exemple si nous assurons 1000 voitures dans une zone répertoriant 10 accidents et parallèlement 100 véhicules dans une zone comprenant 3 accidents, malgré son nombre plus grand d’accidents la première zone nous est plus profitable en tant qu’assurance.    
+
+
+Nous avons donc à déterminer un indicateur et différents seuils de risque pour cet indicateur. Il va venir utiliser notre base de données en comptabilisant le nombre d’accidents dans un rayon de 5km d’un point aléatoire d’IDF. Le nombre d’accident sur une zone qui va être pondéré en fonction de la densité de circulation sur cette zone. Pour cette partie nous avons fait l’hypothèse, pour faire face au manque de données, que la densité de circulation était une fonction de la densité de population sur la zone et de l’éloignement de Paris. On peut supposer que sur la région île de France (hors Paris) le taux de personnes utilisant une voiture est uniforme sur la région. Pour calculer la densité de population sur une zone, par soucis de simplification, nous prendrons la densité de population du département. Il nous reste alors à déterminer le poids de la variable éloignement de Paris dans l’estimation de la densité de circulation, en effet on peut penser que plus on se rapproche de Paris plus le nombre de voiture circulant dans la zone est grand.   
+
+Voici la formule de notre indicateur : 
+
+$Tx = \frac{Nbraccidents}{Y}$
+
+
+Où Y étant la variable de densité de circulation estimée avec le modèle linéaire à deux variables suivant :   
+
+
+$Y = \beta_{0} + \beta_{1}densite_{pop} + \beta_{2}distance_{Paris}$
+
+
+Ceci correspond à un modèle reposant sur de fortes hypothèses. Tout d’abord $\beta_{1}$  correspond à la proportion de personnes utilisant leur voiture (ici on prendra 0.5). $\beta_{2}$ correspond à la diminution de la densité du trafic en s’éloignant de Paris (il est négatif et on prendra l’ordre de grandeur -1000, c’est-à-dire on perd 1000 voitures sur la zone à chaque kilomètre. Enfin $\beta_{0}$ correspond à la densité du trafic lorsqu’il n’y aucun habitant mais que nous sommes proches de Paris, c’est-à-dire que l’arrivée de personne est à son maximum (On prendra une valeur de 100000 arbitrairement encore).    
+
+Une fois l’indicateur prêt à être utilisé nous avons utilisé nos données pour définir des seuils de risques afin de voir les zones comprenant trop d’accidents compte tenu de la circulation. Une fois ceci fait, nous pouvons alors calculer pour chaque individu la valeur de l’indicateur dans un rayon de 5km et appliquer le seuil correspondant.     
+
+Notre modèle peut être utilisé pour modéliser les risques des automobilistes vivant en périphérie des grandes villes et pas seulement de Paris. Notre principale limite étant l’estimation de la densité du trafic.   
+  
+Importation du dataset et correction des données
+```{r}
+library(sp)
+
+data = Accidents_clean <- read.csv2("data/Accidents_clean.csv")
+
+data$latitude = as.numeric(as.character(data$latitude))
+data$longitude = as.numeric(as.character(data$longitude))
+
+data = data[is.na(data$latitude) == FALSE,]
+data = data[is.na(data$dep) == FALSE,]
+data = data[is.na(data$longitude) == FALSE,]
+
+a = c("Normandie", "Centre-Val de Loire", "Bourgogne-Franche-Comté", "Hauts-de-France", "Grand Est", "Île-de-France")
+data1 = data[data$NOM_REG %in% a,]
+```
+
+On crée notre base qui contiendra les points aléatoires en banlieue
+
+```{r}
+b = c(92,93,94,77,78,95,91)
+data_peripherie = data1[data1$dep %in% b,]
+```
+
+On tire au hasard les 1000 points
+```{r}
+ind_train = sample(1:nrow(data_peripherie), 1000 , replace = F)
+train = data_peripherie[ind_train,]
+```
+
+Calcul du nombre d'accidents pour les 1000 observations d'entrainement, dans un rayon de 5km  
+```{r}
+l_accidents = c()
+for(j in 1:length(train[,1])){
+  l_accidents = c(l_accidents, nrow( data1[c(spDistsN1(as.matrix(data1[,13:14]), c(train[j,13], train[j,14]), longlat = TRUE) < 5),]))
+}
+
+train$acc = l_accidents
+```
+
+Calcul de la distance à Notre Dame
+```{r}
+Dist_NDame = spDistsN1(as.matrix(train[,13:14]), c(48.8527288,2.350563500000021), longlat = TRUE)
+train$DistND = Dist_NDame
+```
+
+Création de la variable densité d'habitant par département
+```{r}
+dens_dep=(1:100)
+dens_dep[95] = 928.68
+dens_dep[77] = 215.29 
+dens_dep[91] = 664.08
+dens_dep[92] = 8747.22
+dens_dep[93] = 6316.55
+dens_dep[94] = 5220
+dens_dep[78] = 611
+```
+
+
+On multiple par l'air d'un cercle de rayon de 5km car avait pour 1km² avant
+```{r}
+l_densite = c()
+for(j in 1:length(train[,1])){
+  l_densite = c(l_densite, dens_dep[train$dep[j]]*78.5)
+}
+
+train$densi = l_densite
+```
+
+Création de l'indicateur:  
+
+Valeur des coefficients à optimiser (ici hypothèse simplicistes sur les ordres de grandeur)
+
+```{r}
+coeff_dist = -10^3
+coeff_0 = 10^5
+coeff_Utilisation_Voiture = 0.5
+
+
+l_indicateur = c()
+for(j in 1:length(train[,1])){
+  l_indicateur = c(l_indicateur, train$acc[j] / (coeff_0 + coeff_Utilisation_Voiture *train$densi[j] + coeff_dist * train$DistND[j] ))
+}
+
+train$indicateur = l_indicateur
+```
+
+
+Voici un résumé des résultats de la valeur de l’indicateur pour les 1000 observation d’IDF sélectionnées :  
+
+```{r}
+summary(train$indicateur)
+```
+
+On peut par exemple établir Quatre seuils de tarifs en se basant sur les quartiles, où le seuil le plus bas étant le seuil le moins risqué en terme de ratio d’accidents compte tenu de la densité de circulation.  
+
+
+# Mise en place du processus d'amélioration de la tarification 
+
+## Tarification des contrats d’assurance automobile en fonction du département  
+
+
+L’idée générale serait d’utiliser la cartographie pour pondérer les franchises voire les primes en fonction du lieu où l'assuré est domicilié.  
+
+Cependant, ces cartes à elles seules n’étant pas suffisante pour établir un tarif nous pourrions nous appuyer sur les produits déjà en place en y ajoutant une option « Mon département ».  
+
+En effet, pour les personnes utilisant leur véhicule dans un seul département, il serait alors possible de demander un devis pour estimer si leur département leur permet de bénéficier d’un tarif avantageux.  
+
+Ce contrat pouvant être contraignant en termes de déplacement, l’assuré peut à tout moment décider de désactiver cette option et de retourner à au tarif « classique », il devra alors payer la différence entre les deux primes.   
+
+Cette option pourrait donc permettre de proposer des tarifs plus attractifs pour un certain type de clientèle, cela pourrait alors améliorer la compétitivité de l’entreprise. 
+
+De plus, les cartes présentées précédemment peuvent permettre d’adapter certaines franchises, notamment celles liées à l’hospitalisation, car comme on peut le voir, d’une région à l’autre la fréquence d’hospitalisation peut varier énormément.  
+
+Après la mise en place de cette option, nous pouvons l’essayer dans une région test pendant 1 ans.  
+
+Durant cette année nous réaliserons un suivi du produit avec des d'indicateurs techniques (en particulier les taux de conversion pour contrôler la compétitivité, ratio Sinistre/Prime pour vérifier la rentabilité) puis si nécessaire, nous pouvons réadapter la tarification de l’option en fonction de ce que nous indique le suivi pour ensuite pouvoir l’utiliser dans toute la France.  
+
+Dans un second temps, avec plus d’information sur la densité du trafic autour des grandes villes, nous pourrions utiliser l’indicateur introduit précédemment pour  affiner la tarification des assurés vivant en périphérie de ces villes.  
+
+Pour mettre en place cette modification tarifaire, nous pouvons à nouveau nous baser sur les tarifs classiques et utiliser l’indicateur calculé pour pondérer la variation de prime ou de franchise. La démarche de suivi du produit reste la même.
+ 
+## Contrat d'assurance pour les vélos
+
+D'autre part, dans le département de Paris, nous pouvons remarquer une fréquence d'accidents de vélo d'environ 23,9 pour 10 000 habitants. Ce qui est très élevé par rapport aux autres départements. En effet, le deuxième département ayant la fréquence la plus élevés est l'Indre-et-Loire avec 10,5 accidents pour 10 000 habitants.  
+
+Dès lors, il serait alors judicieux d'utiliser ce chiffre pour inciter les cyclistes parisiens à s'assurer et à éventuellement assurer leur vélo.  
+
+De la même manière que pour les contrat auto, la tarification des contrats d'assurance pour les cyclistes et leurs vélos peuvent être pondérés en fonction du département.
+
+## Respect du RGPD
+
+Pour pouvoir appliquer notre étude à un produit d'assurance, on pourrait mettre en relation notre étude avec les données internes de l'assureur, notamment des donneés de sinistres (montant,lieu,gravité) et des profils assurés (âge,ancienneté permis,nombres d'accidents...).    
+
+Cela permettrait d'affiner la tarification appliqué en fonction du profil de l'assuré et de son emplacement geographique en lien avec les zones qu'on définit dans l'étude.  
+
+Il est tout à fait possible que les données ne soient pas suffisantes, dans ce cas, il faudrait recueillir le consentement des assurés en leur expliquant de manière transparente la finalité dans l'utilisation de leurs données.
+Concernant la durée de stockage, 10 ans semble être judicieux si l'on veut pouvoir affiner le modèle au fil des années tout en restant d'actualité.  
+
+
