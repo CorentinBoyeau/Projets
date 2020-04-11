@@ -1,0 +1,14 @@
+J'ai efféctué ce projet dans le but de m'aider à prendre des décisions dans le jeu vidéo Hearthstone.
+
+Hearthstone est un jeu de cartes de stratégie auquel je jouais.
+Beaucoup des cartes du jeu présentent des effets aléatoires dont il est difficile de saisir les différentes issues.
+
+C'est le cas de la carte "Hystérie Collective" dont je n'arrivais pas à estimer les différentes issues et les différentes probas associées 
+avant de lancer cette carte. 
+
+J'ai donc créer un programme Python permettant de simuler le lancer de la carte 5000 fois tout en gardant le côté aléatoire avec Numpy.
+J'avais donc une estimation des probabilités, via les fréquences obtenus avec les 5000 lancers.
+
+Cependant je voulais partager le programme aux autres joueurs n'ayant pas Python.
+
+J'ai donc appris à faire une interface graphique avec Tkinter et à créer un fichier éxecutable .exe avec cx_Freeze afin de partager mon programme.
