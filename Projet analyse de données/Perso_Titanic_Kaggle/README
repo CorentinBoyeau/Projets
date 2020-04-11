@@ -1,0 +1,16 @@
+J'ai effectué ce projet dans mon temps libre dans l'objectif de me familiariser avec le machine learning et avec les librairies Python nécessaires.
+
+Ce projet m'a appris différentes choses : 
+
+- Me familiariser avec les packages Python indispensables au machine learning : Pandas, Seaborn et Sklearn
+- L'encodage de variables catégorielles 
+- La normalisation des variables
+- L'utilisation de modèles de classification (KNN, SGDClassifier, Random Forest)
+- La cross validation
+- La selection des meilleurs paramètres des modèles (fonction GridSearchCV)
+- La selection des meilleurs variables des modèles
+
+J'ai notamment mis à disposition un fichier html fait à partir de Jupyter sur lequel sont présents quelques résultats. 
+
+J'ai notamment appris les différentes fonctions Python via ce tutoriel : 
+https://www.youtube.com/watch?v=82KLS2C_gNQ&list=PLO_fdPEVlfKqMDNmCFzQISI2H_nJcEDJq
