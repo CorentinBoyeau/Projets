@@ -1,0 +1,5 @@
+J'ai effectué ce projet au premier semestre de M1 dans le cadre du cours de Séries Temporelles.
+Le but du projet était d'appliquer les modèles vus en cours : AR, MA, ARMA, GARCH...
+
+Pour notre notre projet nous avions décidé d'analyser les données des taxis à New-York afin de prévoir la demande des taxis 
+des 10 prochains jours.
