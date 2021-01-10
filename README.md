@@ -5,4 +5,4 @@ Pour télécharger les fichiers plusieurs possibilités :
 
 --> Télécharger l'ensemble du dossier via le bouton vert "Code" puis "Download ZIP" (fichier assez lourd)
 
---> Télécharger les documents 1 par 1 en se rendant sur le fichier puis clic droit sur "Raw" puis faire "Enregistrer le lien sous..."
+--> Télécharger les documents 1 par 1 en faisant un clic droit sur le fichier puis "Enregistrer le lien sous..."
