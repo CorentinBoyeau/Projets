@@ -1,0 +1,607 @@
+---
+title: "Data visualisation : Analyse des résiliations et de la durée des contrats"
+author: Boyeau Corentin
+date: 07 octobre 2020
+output:
+  rmdformats::readthedown:
+    highlight: kate
+---
+
+
+```{r setup, echo=FALSE, cache=FALSE, warning=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+
+# Introduction
+
+Le but général de ce projet est de mener des analyses dont l'objectf sera de conserver le plus longtemps possible nos risques et donc d'éviter la résiliation de nos assurés. Pour ce faire nous mènerons 2 études distinctes. 
+
+La première sera d'identifier les différentes variables qui ont un impact sur la durée des contrats. L'analyse pourrait être par exemple menée dans le but d'aider l'équipe marketing afin d'identifier les profils susceptibles de conserver le plus longtemps possible leur contrat. 
+
+Dans un second temps nous nous intéresserons plus particulièrement aux motifs de résiliation, quels sont les profils qui ont plutôt tendance à annuler leur contrat et quels sont ceux qui ne payent pas leur prime.
+
+# Préparation du dataset
+
+Dans cette partie nous nous concentrerons principalement sur la transformation préalable des données, afin  de pouvoir exploiter au mieux notre base de données.  
+
+## Importations
+
+### Packages
+
+Nous utiliserons les packages suivant lors de toute notre étude :
+
+```{r, message= FALSE, warning = FALSE}
+library(ggplot2)
+library(data.table)
+library(ggthemes)
+```
+
+### Données
+
+Nous utiliserons uniquement la base contrats dans l'étude. On aurait pu envisager d'utiliser la base prestations pour étudier l'impact que peut avoir la sinistralité sur les résiliations, mais après fusion des bases, il semble que la base prestation ne semble pas contenir les sinistres des contrats déjà résiliés. Impossible donc de l'utiliser pour notre analyse.  
+
+```{r}
+contrats <- read.csv("contrats.csv", header=T, sep=';')
+```
+
+
+## Création de variables supplémentaires
+
+### Durée des contrats en jours
+
+#### Création de la variable
+
+Cette variable sera indispensable pour la suite de l'étude, il s'agit de la durée des contrats (en jours) qui ont été résiliés. 
+
+```{r}
+
+contrats$DATEEFF = as.Date(x = contrats$DATEEFF, format = "%Y-%m-%d")
+contrats$DATECAN = as.Date(x = contrats$DATECAN, format = "%Y-%m-%d")
+
+contrats$DUREECONTRATS = as.numeric(difftime(contrats$DATECAN, contrats$DATEEFF,unit="days"))
+
+summary(contrats$DUREECONTRATS)
+
+```
+
+#### Suppression des anomalies
+
+On remarque que certaines des durées sont négatives. Cela est causé par des dates de souscription du contrat plus ancienne que les dates de résiliations. En pratique, en entreprise, il faudrait interroger les personnes connaissant la base, afin d'avoir plus d'informations sur la nature de l'anomalie et sur la manière de la régler. Peut-être par exemple, qu'il arrive que les dates soient simplement inversées. Cependant, en l'absence d'informations il est plus sage de considérer la variable en NA. 
+
+```{r}
+
+contrats$DUREECONTRATS[contrats$DUREECONTRATS<0] <- NA
+
+```
+
+### Age du contrat à la résiliation
+
+#### Création de la variable
+
+
+Afin de simplifier les représentations graphiques on peut créer une variable catégorielle, "âge" du contrat à la résiliation. De cette manière si le contrat a été résilié en moins d'un an par exemple, la valeur de la variable est de 0. Si le contrat a été résilié au bout de 2 ans et demi la variable sera de 2, etc...
+
+```{r}
+
+age = function(from, to) {
+  from_lt = as.POSIXlt(from)
+  to_lt = as.POSIXlt(to)
+
+  age = to_lt$year - from_lt$year
+
+  ifelse(to_lt$mon < from_lt$mon |
+         (to_lt$mon == from_lt$mon & to_lt$mday < from_lt$mday),
+         age - 1, age)
+}
+
+contrats$DUREECONTRATS_YEARS <- age(contrats$DATEEFF,contrats$DATECAN)
+
+summary(as.factor(contrats$DUREECONTRATS_YEARS))
+```
+
+#### Suppression des anomalies
+
+Tout comme la variable précédente, certaines des valeurs sont négatives, on va considérer ces anomalies en NA pour les mêmes raisons que précédemment. 
+
+```{r}
+
+contrats$DUREECONTRATS_YEARS[contrats$DUREECONTRATS_YEARS<0] <- NA
+
+```
+
+#### Réduction des catégories
+
+```{r}
+
+summary(as.factor(contrats$DUREECONTRATS_YEARS))
+
+```
+
+Les personnes ayant résiliées au bout de 5 et 6 ans sont très peu. Pour que les analyses soient plus pertinentes nous réunissons les personnes ayant résilié après 4 ans dans une même variable. De fait, les 5 catégories auront un nombre d'exemples à peu près équivalent.
+
+```{r}
+
+contrats$DUREECONTRATS_YEARS[contrats$DUREECONTRATS_YEARS==0] <- "Moins d'1 an"
+contrats$DUREECONTRATS_YEARS[contrats$DUREECONTRATS_YEARS==1] <- "Entre 1 et 2 ans"
+contrats$DUREECONTRATS_YEARS[contrats$DUREECONTRATS_YEARS==2] <- "Entre 2 et 3 ans"
+contrats$DUREECONTRATS_YEARS[contrats$DUREECONTRATS_YEARS==3] <- "Entre 3 et 4 ans"
+contrats$DUREECONTRATS_YEARS[contrats$DUREECONTRATS_YEARS%in%c(4,5,6)] <- "4 ans et +"
+
+```
+
+### Age du client à la souscription
+
+Il peut être intéressant de disposer de l'âge du client, en utilisant la même fonction que pour la variable précédente. De cette manière, on pourra par la suite analyser l'impact de l'âge sur la fidélité dans le temps des assurés. Dans la mesure où les contrats qu'on étudie sont pour la plupart résiliés depuis plusieurs années on ne peut pas calculer l'âge à partir de la date actuelle, on le fait plutôt à partir de la date de souscription afin que les données soient comparables.
+
+
+```{r}
+
+contrats$AGECLI <- age(contrats$DTNCLI,contrats$DATEEFF)
+
+summary(as.factor(contrats$AGECLI))
+```
+
+### Nombre de bénéficiaires
+
+Le nombre de bénéficiaires pourra également être une variable d'intérêt, pour déterminer par exemple si les familles nombreuses ont tendances à conserver plus longtemps leur contrat ou non.
+
+Pour créer la variable, on identifie les colonnes correspondantes au conjoint et aux enfants qui ne se sont pas vides
+
+```{r}
+Benef_Tab = !is.na(contrats[,colnames(contrats) %in% c("IDCLI","IDPART","IDCHI1","IDCHI2","IDCHI3","IDCHI4","IDCHI5","IDCHI6")])
+```
+
+Il ne reste qu'à faire la somme sur chaque ligne, vu que TRUE = 1 et False = 0
+
+```{r}
+contrats$NB_BENEF = apply(Benef_Tab,1 ,sum)
+
+```
+
+
+# Répartition des données
+
+## Répartition des durées de contrats et premières statistiques
+
+
+```{r}
+ggplot(contrats, aes(x=DUREECONTRATS))+
+  stat_ecdf(size=2)+
+  theme_few()+
+  xlab("Durée des contrats (en jours)")+
+  ggtitle("Répartition cumulée de la durée des contrats")+
+  geom_abline(intercept=0, slope=0.00055,size=1,color="red")
+  
+
+```
+
+La fonction de répartition est plutôt linéaire, ce qui indique que la durée des contrats suit une loi uniforme. On remarque tout de même que la pente semble plus forte entre 400 et 1200 jours étant donné le passage au-dessus de la droite durant cette période. Cependant de manière générale, aucune durée de contrat ne revient particulièrement plus que les autres. 
+
+Ce résultat est plutôt étonnant, on aurait pu penser que certaines durées, 365 ou 366 jours par exemple reviendraient plus souvent car de nombreux contrats d'assurances, comme l'assurance auto sont valables pour 1 an renouvelable. On peut en déduire que ce n'est pas le cas du produit prévoyance sur lequel on travaille.
+
+```{r}
+ggplot(contrats, aes(x=DUREECONTRATS_YEARS))+
+  geom_bar(na.rm = TRUE)+
+  theme_few()+
+  scale_x_discrete(limits=c("Moins d'1 an", "Entre 1 et 2 ans","Entre 2 et 3 ans", "Entre 3 et 4 ans","4 ans et +"))+
+  xlab("Durée des contrats")+
+  ggtitle("Réparition des contrats résiliés en fonction de leur durée")
+  
+```
+
+Le nombre de résiliations est plus important entre 1 et 3 ans après la résiliation du contrat, ce qui rejoint notre observation concernant l'augmentation de la pente dans le graphe de la densité.
+
+```{r}
+
+summary(contrats$DUREECONTRATS)
+
+```
+
+La médiane et la moyenne se trouvent toutes les 2 aux alentours de 900 jours, soit environ 2 ans et demi.
+
+## Répartition des motifs de résiliation
+
+```{r}
+
+ggplot(contrats, aes(x=REACAN))+
+  geom_bar()+
+  scale_x_discrete(limits=c("Cancel renewal policy", "Cancellation on renewal from the customer", "Non-payment of the premium"))+
+  xlab("Raison de la résiliation")+
+  ggtitle("Répartition des motifs de résiliation")
+
+```
+
+La raison de résiliation la plus commune est le non-paiement des primes suivi de l'annulation du renouvellement par le client.
+
+```{r}
+
+ggplot(contrats, aes(x=REACAN, fill=DUREECONTRATS_YEARS))+
+  geom_bar(position="fill")+
+  theme(axis.text.x = element_text(size = 6))+
+  scale_y_continuous(labels = scales::percent)+
+  scale_fill_discrete(name = "Durée des contrats", limits=c("Moins d'1 an", "Entre 1 et 2 ans","Entre 2 et 3 ans", "Entre 3 et 4 ans","4 ans et +", NA))+
+  scale_x_discrete(limits=c("Cancel renewal policy", "Cancellation on renewal from the customer", "Non-payment of the premium"))+
+  xlab("Raison de la résiliation")+
+  ylab("Effectifs")+
+  ggtitle("Proportion des durées de contrat en fonction du motif de résiliation")
+
+```
+
+On remarque que plus de la moitié des dates de résiliations ne sont pas renseignées dans la base alors qu'on dispose pourtant d'un motif de résiliation. 
+
+```{r}
+contrats_withoutNA_duree <- contrats[!is.na(contrats$DUREECONTRATS_YEARS),]
+
+
+ggplot(contrats_withoutNA_duree, aes(x=DUREECONTRATS_YEARS, fill=REACAN))+
+  geom_bar(position="fill")+
+  scale_x_discrete(limits=c("Moins d'1 an", "Entre 1 et 2 ans","Entre 2 et 3 ans", "Entre 3 et 4 ans","4 ans et +"))+
+  theme(axis.text.x = element_text(size = 6))+
+  scale_y_continuous(labels = scales::percent)+
+  ylab("Effectifs")+
+  xlab("Durée des contrats")+
+  scale_fill_discrete(name = "Raison de la résiliation")+
+  ggtitle("Proportion des motifs de résiliation en fonction de la durée du contrat")
+
+
+
+```
+
+Il apparaît que l'annulation du renouvellement de la police est un motif de résiliation peu fréquent, nous allons donc l'ignorer pour la suite de l'étude.  
+
+On remarque également que les clients fidèles ayant gardé leur contrat au moins 4 ans, ont vu leur contrat s'arrêter surtout à cause du non-paiement de la prime de leur part, et seulement une faible partie a annulé le renouvellement volontairement. Cet élément paraît plutôt intuitif, les personnes voulant annuler leur contrat l'ont fait surtout dans les 3 premières années.
+
+On peut également visualiser la répartiton à l'aide d'un tableau : 
+
+```{r}
+
+contrats_withoutNA_duree_withoutRenewal <- contrats_withoutNA_duree[!contrats_withoutNA_duree$REACAN=="Cancel renewal policy",]
+
+dt <- setDT(contrats_withoutNA_duree_withoutRenewal)[,.(Nombre=.N), by=list(DUREECONTRATS_YEARS, REACAN)]
+dt[order(-DUREECONTRATS_YEARS, REACAN)][c(1,2,7,8,5,6,3,4,9,10)]
+
+```
+
+Certaines des catégories sont très peu représentées, notamment l'annulation des contrats par le client pour des durées de 4 ans et + ainsi que pour le cas 1 an et moins. 
+
+
+# Impact des variables sur la durée des contrats 
+
+Le but de cette partie est de déterminer les caractéristiques des assurés les plus fidèles, c'est à dire ceux dont la durée de contrat est la plus grande, sans prendre en compte pour le moment les motifs de résiliations. 
+
+Nous allons utiliser la base "all_resi" dans laquelle se trouve toutes les lignes du dataset ayant une durée de contrat renseignée.
+
+```{r}
+
+all_resi <- contrats[!is.na(contrats$DUREECONTRATS),]
+
+```
+
+
+## Sexe du client
+
+
+```{r}
+ggplot(all_resi, aes(x=DUREECONTRATS,color=SEXCLI))+
+  geom_density()+
+  theme_few()+
+  xlab("Durée des contrats (en jours)")+
+  scale_color_discrete(name = "Sexe du client")+
+  ggtitle("Impact du sexe du client sur la durée des contrats")
+
+```
+
+Les courbes de densités sont très proches les unes des autres, indiquant un impact à priori inexistant du sexe du client dans la durée des contrats.
+
+```{r}
+ggplot(all_resi, aes(x=DUREECONTRATS_YEARS,fill=SEXCLI))+
+  geom_bar(position="fill")+
+  theme_few()+
+  xlab("Durée des contrats (en jours)")+
+  scale_fill_discrete(name = "Sexe du client")+
+  scale_x_discrete(limits=c("Moins d'1 an", "Entre 1 et 2 ans","Entre 2 et 3 ans", "Entre 3 et 4 ans","4 ans et +"))+
+  ggtitle("Impact du sexe du client sur la durée des contrats")+
+  scale_y_continuous(labels = scales::percent)
+
+
+```
+
+Du point de vue général, il est clair que le sexe du client n'a aucun impact sur la résiliation. 
+
+
+## Age du client
+
+
+
+```{r}
+ggplot(all_resi, aes(x=DUREECONTRATS_YEARS,y=AGECLI))+
+  geom_boxplot()+
+  theme_few()+
+  xlab("Durée des contrats")+
+  ylab("Age du client")+
+  scale_fill_discrete(name = "Sexe du client")+
+  scale_x_discrete(limits=c("Moins d'1 an", "Entre 1 et 2 ans","Entre 2 et 3 ans", "Entre 3 et 4 ans","4 ans et +"))+
+  ggtitle("Impact de l'âge du client sur la durée des contrats")
+
+```
+
+Les 5 boxplots sont quasiment identiques, on en déduit que l'âge n'a aucun impact sur la durée des contrats tout motif confondu. Ce résultat paraît étonnant, l'âge étant assez important dans les contrats d'assurance santé, cette variable aurait pu avoir également un impact sur les résiliations. 
+
+
+
+## Profession 
+
+
+
+```{r}
+ggplot(all_resi, aes(x=DUREECONTRATS_YEARS, fill=PROFCLI))+
+  geom_bar(position="fill")+
+  theme_few()+
+  scale_x_discrete(limits=c("Moins d'1 an", "Entre 1 et 2 ans","Entre 2 et 3 ans", "Entre 3 et 4 ans","4 ans et +"))+
+  scale_y_continuous(labels = scales::percent)+
+  ylab("Effectifs")+
+  xlab("Durée des contrats")+
+  scale_fill_discrete(name="Profession du client")+
+  theme(axis.text = element_text(size = 7))+
+  ggtitle("Impact de la profession sur la durée des contrats")
+
+```
+
+```{r}
+
+dt <- setDT(all_resi)[,.(Nombre=.N, Moyenne=mean(DUREECONTRATS)), by=list(PROFCLI)]
+dt[order(-Moyenne)]
+```
+
+Les professions des clients sont assez difficilement exploitables car certaines d'entre elles reviennent peu souvent, et donc le nombre d'exemple est peu significatif. Certaines professions apparaissent cependant plus souvent, à savoir les employés, les personnes aux chômages, ainsi que les professions en catégories "Autres". Or il se trouve que ces 3 branches sont justement celles qui sont les plus proches de la moyenne calculée en première partie à savoir 909 jours. 
+
+Les autres professions sont plus éloignées de la moyenne mais sont présentes en beaucoup plus faible effectif, difficile donc de dire si cela est très significatif.  
+
+On peut tout de même noter, les employés de la fonction publique avec un nombre d'exemple approchant les 80, dont la durée moyenne des contrats est inférieure à pratiquement 60 jours comparé à la moyenne générale. De leur côté, les ouvriers avec 42 exemples, semblent plus fidèles, avec une moyenne s'élevant à 1012 jours, soit plus de 100 jours au-dessus de la moyenne générale. 
+
+
+
+
+## Montant des primes
+
+
+```{r}
+ggplot(all_resi, aes(x=DUREECONTRATS_YEARS,y=AMTPREM))+
+  geom_boxplot()+
+  theme_few()+
+  xlab("Durée des contrats (en jours)")+
+  ylab("Montant de la prime que paye le client")+
+  scale_fill_discrete(name = "Sexe du client")+
+  scale_x_discrete(limits=c("Moins d'1 an", "Entre 1 et 2 ans","Entre 2 et 3 ans", "Entre 3 et 4 ans","4 ans et +"))+
+  ggtitle("Impact du montant de prime sur la durée des contrats")
+
+```
+
+
+```{r}
+dt <- setDT(all_resi)[,.(Nombre=.N, Moyenne=mean(AMTPREM)), by=list(DUREECONTRATS_YEARS)]
+dt[order(-DUREECONTRATS_YEARS)][c(1,4,3,2,5)]
+```
+
+Il apparaît qu'il y a un très léger impact entre le montant des primes et la durée des contrats des assurés. Les assurés qui restent le plus longtemps sont ceux dont la prime est la plus faible ce qui est assez intuitif.
+
+
+
+
+## Comparateur
+
+
+```{r}
+ggplot(all_resi[!is.na(all_resi$COMPAR),], aes(x=DUREECONTRATS_YEARS, fill=COMPAR))+
+  geom_bar(position="fill")+
+  theme_few()+
+  scale_x_discrete(limits=c("Moins d'1 an", "Entre 1 et 2 ans","Entre 2 et 3 ans", "Entre 3 et 4 ans","4 ans et +"))+
+  scale_y_continuous(labels = scales::percent)+
+  ylab("Effectifs")
+
+```
+
+```{r}
+dt <- setDT(all_resi)[,.(Nombre=.N, Moyenne=mean(DUREECONTRATS)), by=list(COMPAR)]
+dt[order(-Moyenne)]
+```
+
+Les comparateurs ont un fort impact sur la durée des contrats et notamment les comparateurs 1 et 6. Les clients venant du comparateur 1 sont beaucoup plus fidèles que le reste des clients avec une moyenne de 1065 jours soit plus de 150 jours au-dessus de la moyenne générale de 909 jours. A l'inverse ceux venant du comparateur 6 restent beaucoup moins longtemps avec une moyenne de 130 jours inférieurs à la moyenne générale. Difficile cependant de donner une explication à ces résultats, il serait en pratique judicieux de se renseigner davantage sur les comparateurs en question afin d'expliquer ces différences de résultats.
+
+## Nombre de bénéficiaires
+
+
+
+```{r}
+ggplot(all_resi, aes(x=as.factor(NB_BENEF),y=DUREECONTRATS))+
+  geom_boxplot()+
+  geom_hline(yintercept = median(all_resi$DUREECONTRATS), color='red')+
+  xlab("Nombre de bénéficiaires")+
+  ylab("Durée des contrats (en jours)")+
+  theme_few()
+```
+
+```{r}
+
+Client_Et_1Enfant = sum(is.na(all_resi[all_resi$NB_BENEF == 2,]$IDPART))
+Total_2benef = length((all_resi[all_resi$NB_BENEF == 2,]$IDPART))
+
+paste0("Sur les ", Total_2benef, " contrats avec 2 bénéficiaires, il y a ", round(Client_Et_1Enfant/Total_2benef*100,1), "% de client avec 1 enfant, le reste étant des couples d'adultes")
+```
+
+```{r}
+dt <- setDT(all_resi)[,.(Nombre=.N, Medianne=median(DUREECONTRATS)), by=list(NB_BENEF)]
+dt[order(-Medianne)]
+```
+
+Il apparaît que les clients faisant bénéficier de leur contrat à une seule autre personne (leur enfant ou leur conjoint) ont tendances à être beaucoup plus fidèle avec une médiane de durée de contrat étant de 1049 jours soit 177 jours au-dessus de la médiane générale de 872. 
+
+# Impact des variables sur les motifs de résiliation
+
+L'idée de cette partie est d'identifier le profil des assurés en fonction du motif de résiliation. Nous allons utiliser la base "cancel_and_non_payment" comprenant l'ensemble des lignes du dataset ayant un motif de résiliation "Cancellation on renewal from the customer" ou "Non-payment of the premium". Le motif "Cancel renewal policy" n'étant pas assez représenté, nous décidons de l'ignorer.
+
+```{r}
+
+cancel_and_non_payment <- contrats[!is.na(contrats$REACAN)&contrats$REACAN%in%c("Cancellation on renewal from the customer","Non-payment of the premium"),]
+
+```
+
+## Sexe du client
+
+```{r}
+ggplot(cancel_and_non_payment, aes(x=REACAN,fill=SEXCLI))+
+  geom_bar(position="fill")+
+  theme_few()+
+  xlab("Motif de résiliation")+
+  ylab("Effectif")+
+  scale_fill_discrete(name = "Sexe du client")+
+  ggtitle("Répartition du sexe des clients selon le motif de résiliation")+
+  scale_y_continuous(labels = scales::percent)
+
+```
+
+Les proportions sont globalement les mêmes quel que soit le motif de résiliation, le sexe du client n'a donc pas d'impact sur la raison de la résiliation. 
+
+## Age du client
+
+```{r}
+ggplot(cancel_and_non_payment, aes(x=REACAN,y=AGECLI))+
+  geom_boxplot()+
+  theme_few()+
+  xlab("Motif de résiliation")+
+  ylab("Age des clients")+
+  scale_fill_discrete(name = "Sexe du client")+
+  ggtitle("Répartition de l'âge des clients selon le motif de résiliation")
+
+```
+
+Les assurés ne payant pas leur prime sont plutôt des profils jeunes. On peut supposer que les jeunes, souvent plus précaires, sont moins enclin à payer leur prime. 
+
+## Profession
+
+```{r}
+ggplot(cancel_and_non_payment, aes(x=REACAN,fill=PROFCLI))+
+  geom_bar(position="fill")+
+  theme_few()+
+  xlab("Motif de résiliation")+
+  ylab("Effectif")+
+  scale_fill_discrete(name = "Profession")+
+  ggtitle("Répartition de la profession des clients selon le motif de résiliation")+
+  scale_y_continuous(labels = scales::percent)+
+  theme(axis.text.x = element_text(size = 7))
+
+
+
+```
+
+Les personnes sans emploi sont d'avantages représentées pour le motif de non-paiement de primes, ce qui encore une fois peut s'expliquer par la précarité de ces personnes. A l'inverse les employés de la fonction publique ont tendance à résilier d'avantage leur contrat d'un point de vue proportionnel. 
+
+## Montant des primes
+
+```{r}
+ggplot(cancel_and_non_payment, aes(x=REACAN,y=AMTPREM))+
+  geom_boxplot()+
+  theme_few()+
+  xlab("Motif de résiliation")+
+  ylab("Primes payées")+
+  ggtitle("Répartition du montant des primes payées selon le motif de résiliation")
+
+```
+
+Le résultat est ici très étonnant, les personnes ayant tendances à résilier pour cause de non-paiement de primes, payent moins de primes que celles qui résilient pour cause d'annulation de leur contrat. C'est donc plutôt contre-intuitif, on aurait eu tendance à penser, que plus une personne paye chère de primes, plus elle a tendance à ne pas les payer. On peut tenter d'expliquer ce résultat en disant que, une personne qui paye chère de primes est une personne qui est plus à risques, et donc qui fait en sorte de payer ses primes, pour être certain d'être couvert en cas de problème de santé.
+
+## Comparateur
+
+```{r}
+ggplot(cancel_and_non_payment[!is.na(cancel_and_non_payment$COMPAR),], aes(x=REACAN,fill=COMPAR))+
+  geom_bar(position="fill")+
+  theme_few()+
+  xlab("Raison de la résiliation")+
+  ylab("Effectif")+
+  scale_fill_discrete(name = "Comparateur")+
+  ggtitle("Répartition des comparateurs d'origine selon le motif de résiliation")+
+  scale_y_continuous(labels = scales::percent)
+
+
+```
+
+Les assurés venant du comparateur 5 et 6 sont beaucoup plus représentés dans la catégorie non-paiement des primes. Alors que les comparateurs 2 et 4 ont d'avantage tendance à annuler leur contrat. 
+
+## Nombre de bénéficiaires
+
+```{r}
+ggplot(cancel_and_non_payment, aes(x=REACAN,fill=as.factor(NB_BENEF)))+
+  geom_bar(position="fill")+
+  theme_few()+
+  xlab("Motif de résiliation")+
+  ylab("Effectif")+
+  scale_fill_discrete(name = "Nombre de bénéficiaires")+
+  ggtitle("Répartition de l'âge des clients selon le motif de résiliation")+
+  scale_y_continuous(labels = scales::percent)+
+  theme(axis.text.x = element_text(size = 8))
+
+```
+
+Les personnes seuls ont d'avantage tendance à ne pas payer leur prime. Vu qu'ils sont les seuls bénéficiaires des prestations, les conséquences sur la couverture santé ne concerne qu'eux et donc on peut penser qu'ils ont moins de remords à ne pas payer. Pour un nombre de bénéficiaires supérieure ou égale à 3 (et surtout pour 3 et 4), le motif de résiliation est proportionnellement plus important pour "Cancellation on renewal from the customer".
+
+# Conclusion et limites
+
+Pour résumé cette analyse a principalement servi à 2 choses :
+
+* Identifier le profil des assurés les plus fidèles
+* Identifier le profil des assurés pour chaque motif de résiliation
+
+
+Concernant la première étude, il ressort globalement qu'il est très difficile de ressortir un profil précis car de nombreuses variables ne semblent pas avoir d'impact sur la durée des contrats des assurés (sexe du client, âge ...). On peut cependant noter des caractéristiques qui ressortent dans les profils des clients fidèles et peu fidèles.
+
+Pour les clients fidèles : 
+
+* Clients venant du comparateur 1
+* Faible montant de primes
+* Le client possède 2 bénéficiaires
+* Ouvriers
+
+Pour les clients peu fidèles :
+
+* Clients venant du comparateur 6
+* Montant de primes élevées
+* Employés de la fonction publique
+
+Ces caractéristiques sont classées de la plus pertinente à la moins pertinente. Par exemple, dans le cas des ouvriers cette conclusion a été faites à partir de seulement 42 exemples il n'est donc clairement pas recommandé d'effectuer des actions marketing à partir de ces seules éléments. Dans l'idéal il faudrait confirmer ou non ces premières observations en enrichissant la base contrats. On a par exemple remarqué que de nombreuses dates de résiliation ne sont pas présentes alors que des motifs de résiliations le sont. Il serait ainsi utile de se renseigner auprès de personnes compétentes dans l'entreprise pour retrouver ces données.
+
+Concernant la deuxième étude, le but était d'étudier quels profils d'individus ressortent proportionnellement d'avantages entre le motif d'annulation du contrat par le client et la résiliation pour non paiements de primes. 
+
+Pour le non-paiement des primes :
+
+* Clients jeunes
+* Montant de primes basses
+* Clients venant du comparateur 5 et 6
+* Client sans autres bénéficiaires
+* Personnes sans emploi
+
+Pour l'annulation du contrat par le client :
+
+* Clients plus vieux
+* Montant de primes élevées
+* Clients venant du comparateur 2 et 4
+* Clients avec 3 bénéficiaires et +
+* Employés de la fonction publique
+
+Les limites sont les mêmes que pour la première étude. 
+
+Cette deuxième analyse pourrait permettre plusieurs choses, par exemple après avoir identifié les mauvais payeurs, essayer de faire des gestes commerciaux pour conserver ces risques. Concernant l'autre motif, démarcher les personnes annulant leur contrat pour essayer de comprendre la raison de cette annulation et à terme l'empêcher.
+
+Pour conclure, cette étude m'a permis de solidifier mes bases sur R notamment en perfectionnant mon niveau sur ggplot2 et en découvrant la package data.table. Enfin j'ai pu découvrir comment effectuer un rapport html, à l'aide de Rmarkdown.
