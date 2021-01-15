@@ -10,3 +10,5 @@ Pour télécharger les fichiers plusieurs possibilités :
 - Si un bouton "Raw" est présent faire clic droit dessus puis "Enregistrer le lien sous..." (pour les fichiers .py par exemple)
    
 - Si il n'y a pas de bouton "Raw" mais un bouton "Download" cliquer dessus, puis sur l'onglet qui s'ouvre faire clic droit puis "Enregistrer sous" (pour les fichiers .html par exemple)
+
+La plupart des projets contiennent des rapports sous format .pdf ou .html
