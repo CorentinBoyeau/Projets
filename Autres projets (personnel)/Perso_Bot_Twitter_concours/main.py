@@ -3,7 +3,7 @@ tabname = []
 
 ###Constante Paramètre du bot ###
 version = 2.8 #Version du bot
-compte = {"1":["oNz00FgSvopT14398fPqOjEEN","msrU36dR5sLRh2wpJ6MCoYSYWBCFZ2L4xS68Om7u94B1XopUyV","1027818387899117570-mz7pLHmALqzLhVEOJyimwPbcxPAlz7","lrk6jRsKui2Gtf1RR5B5PFK9M21pp2KUY7Sr4MiDJcGUM"],"2":["J9gzPB25FF3Z4w6pX00S6aN5k","TVoq4JCx5rAeosSPqKNSPEd30nZ6JWlW4dAm6ZFh2IiTT7JmoO","1027534916538585089-y4Ibwc9WtqkyK3Rj8mLQUkzPht8WXt","0H37RL3H0Df0yWVfcSLA36VfMHfJBwH3pbVIM5moCj4RG"],"4":["WCfhsPWvLN2D7XCbUmPRmNGaT","8rQUnbzkn5jCAIj1x87T3IvG43Hji53jKoaT78tctIp5iqZ6Qk","1027542688894214145-AABbZhD8X6OkbvqK945tQw4t73VzFL","RbO68cP4SGJj9hBZR9kqa0OQPz1c8hFBHlM6SzGFwdPMb"]} #Liste des comptes avec les identifiants de connexion à l'api
+compte = {"1":[,,,]} #Mettre les identifiants de connexion des comptes développeurs Twitter.
 NombreDeRetweet = 10 #Nombre de tweet que l'on recupère par recherche
 listerecherchefr = ["#concours","#JeuConcours","RT & Follow","tenter de gagner","Gagnez rt + follow","concours pour gagner", "on vous fait gagner"]#Mot à retweeté pour un concours
 FILE = "Blacklist.txt"
@@ -11,7 +11,7 @@ with open(FILE,'r') as f:
     lines=[line.strip('\n') for line in f.readlines()]
 
 BlackListCompte = [line for line in lines]
-CompteTag = ["@hicarion4", "@LodBet"]#Les comptes à utiliser pour tag. Si vous utilisez plusieurs comptes bot vous n'avez pas besoins d'ajouter de comptes dans ce tableau. Vous devez rentrer le compte avec son @ (@toto)
+CompteTag = [@Blabla]#Les comptes à utiliser pour tag. Si vous utilisez plusieurs comptes bot vous n'avez pas besoins d'ajouter de comptes dans ce tableau. Vous devez rentrer le compte avec son @ (@toto)
 ###
 
 
