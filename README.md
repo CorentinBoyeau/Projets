@@ -1,5 +1,5 @@
 # Projets
-Voici une vue d'ensemble des projets que j'ai pu faire pendant ma scolarité ou dans mon temps libre. Je les ai classé en 4 catégories : L3, M1, M2 ou Perso
+Voici une vue d'ensemble des projets que j'ai pu faire pendant ma **scolarité** ou dans mon **temps libre**. Je les ai classé en 4 catégories : L3, M1, M2 ou Perso
 
 Pour télécharger les fichiers plusieurs possibilités :
 
