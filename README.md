@@ -3,8 +3,8 @@ Voici une vue d'ensemble des projets que j'ai pu faire pendant ma **scolarité**
 
 Pour télécharger les fichiers plusieurs possibilités :
 
---> Télécharger l'ensemble du dossier via le bouton vert "Code" puis "Download ZIP" (fichier très lourd)
+--> Télécharger l'ensemble des projets via le bouton vert "Code" puis "Download ZIP" (fichier très lourd)
 
---> Télécharger les documents 1 par 1 en cliquant sur chaque fichier individuellement. Puis faire clic droit sur le bouton "Raw"/"Download" puis "Enregistrer le lien sous..."
+--> Télécharger les fichiers 1 par 1 en cliquant sur chaque fichier individuellement. Puis faire clic droit sur le bouton "Raw"/"Download" puis "Enregistrer le lien sous..."
 
 La plupart des projets contiennent des rapports sous format .pdf ou .html
