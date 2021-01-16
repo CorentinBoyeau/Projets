@@ -5,6 +5,6 @@ Pour télécharger les fichiers plusieurs possibilités :
 
 --> Télécharger l'ensemble du dossier via le bouton vert "Code" puis "Download ZIP" (fichier très lourd)
 
---> Télécharger les documents 1 par 1 en cliquant sur chaque fichier individuellement. Puis faire clic droit sur le bouton "Raw" ou "Download" puis "Enregistrer le lien sous..."
+--> Télécharger les documents 1 par 1 en cliquant sur chaque fichier individuellement. Puis faire clic droit sur le bouton "Raw"/"Download" puis "Enregistrer le lien sous..."
 
 La plupart des projets contiennent des rapports sous format .pdf ou .html
