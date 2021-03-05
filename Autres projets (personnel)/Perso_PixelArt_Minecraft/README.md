@@ -4,4 +4,4 @@ Minecraft est un jeu de création qui nous plonge dans un monde cubique. Le but 
 
 L'objectif par la suite est de créer des vidéos dans lesquels des visages de personnalités s'affichent au fur et à mesure, le but étant de trouver le nom de la personnalité le plus rapidement possible. 
 
-Les vidéos sont par la suite postées sur mon compte Tiktok qui comptabilise à l'heure où j'écris 113 000 abbonés. Vous pouvez retrouver un exemple de vidéo sur ce [lien](https://www.tiktok.com/@corentok/video/6798927652595059973?lang=fr)
+Les vidéos sont par la suite postées sur mon compte Tiktok qui comptabilise à l'heure où j'écris 113 000 abonnés. Vous pouvez retrouver un exemple de vidéo sur ce [lien](https://www.tiktok.com/@corentok/video/6798927652595059973?lang=fr)
