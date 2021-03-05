@@ -14,12 +14,12 @@ import numpy as np
 
 
 mc=minecraft.Minecraft.create()
-Nombre_pixel_art = 22
+Nombre_pixel_art = 22       #Nombre de pixel art qu'on veut faire à la suite
 
-for t in range (14, Nombre_pixel_art+1):
+for t in range (1, Nombre_pixel_art+1):
     
-    sf = SchematicFile.load('resources/'+ str(t) +'.schematic')
-    
+    sf = SchematicFile.load(str(t) +'.schematic')    #Fichier schematic. Pour la conversion d'une image en schematic utiliser le logiciel Spritecraft
+                                                     #Nommer les fichiers schematic de "1" à Nombre_pixel_art
     largeur = int(sf['Schematic']['Width'])
     longueur=int(sf['Schematic']['Length'])
     
